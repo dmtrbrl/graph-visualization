@@ -76,7 +76,7 @@ export default {
         .force("link", d3.forceLink().links(this.graph.links))
         .force("charge", d3.forceManyBody())
         .force("center", d3.forceCenter())
-        .on("tick", this.tick);
+        .on("tick", this.onTick);
       this.updateForces();
     },
     initD3Selections() {
@@ -98,16 +98,6 @@ export default {
         .scaleExtent([1 / 2, 2])
         .on("zoom", this.onZoom);
       this.d3Selections.svg.call(this.zoom);
-    },
-    tick() {
-      const transform = d => `translate(${d.x}, ${d.y})`;
-
-      const link = d =>
-        `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
-
-      const graph = this.d3Selections.graph;
-      graph.selectAll("path").attr("d", link);
-      graph.selectAll("circle").attr("transform", transform);
     },
     loadDefaultDummyData() {
       d3
@@ -144,6 +134,7 @@ export default {
         .enter()
         .append("circle")
         .attr("r", 5)
+        .on("click", this.onNodeClick)
         .call(
           d3
             .drag()
@@ -151,7 +142,6 @@ export default {
             .on("drag", this.onNodeDragged)
             .on("end", this.onNodeDragEnded)
         )
-        .on("click", this.onNodeClick)
         .exit()
         .remove();
 
@@ -169,6 +159,27 @@ export default {
         .iterations(forceProperties.link.iterations);
 
       simulation.alpha(1).restart();
+    },
+    highlightSelectedNodes() {
+      const circles = this.d3Selections.graph.selectAll("circle");
+      if (!this.selectedNodes.length) {
+        circles.classed("selected", false);
+      } else {
+        circles
+          .classed("selected", false)
+          .filter(c => this.selectedNodes.indexOf(c) !== -1)
+          .classed("selected", true);
+      }
+    },
+    onTick() {
+      const transform = d => `translate(${d.x}, ${d.y})`;
+
+      const link = d =>
+        `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+
+      const graph = this.d3Selections.graph;
+      graph.selectAll("path").attr("d", link);
+      graph.selectAll("circle").attr("transform", transform);
     },
     onZoom() {
       const transform = d3.event.transform;
@@ -213,14 +224,16 @@ export default {
       d.fx = null;
       d.fy = null;
     },
-    onNodeClick(d) {
-      console.log(d.selected);
+    onNodeClick(node) {
+      const index = this.selectedNodes.indexOf(node);
 
-      d.selected = true;
-
-      const circle = this.d3Selections.graph.selectAll("circle");
-      // circle.classed("selected", false);
-      circle.filter(td => td === d).classed("selected", true);
+      if (index !== -1) {
+        this.selectedNodes.splice(index, 1);
+      } else if (this.selectedNodes.length == 2 && index == -1) {
+        this.selectedNodes = [node];
+      } else {
+        this.selectedNodes.push(node);
+      }
     }
   },
   watch: {
@@ -233,6 +246,12 @@ export default {
     forceProperties: {
       handler(newForce) {
         this.updateForces();
+      },
+      deep: true
+    },
+    selectedNodes: {
+      handler(newNodes) {
+        this.highlightSelectedNodes();
       },
       deep: true
     }
