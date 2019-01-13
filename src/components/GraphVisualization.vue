@@ -18,14 +18,13 @@
       </defs>
     </svg>
     <div class="graph-counter" v-if="graph.nodes.length && graph.links.length">
-      Nodes: {{ graph.nodes.length }} / Links: {{ graph.links.length }}
+      {{ graph.nodes.length }} nodes / {{ graph.links.length }} edges
     </div>
   </div>
 </template>
 
 <script>
 import * as d3 from "d3";
-import graphIcon from "../assets/graph-icon.svg";
 
 export default {
   name: "GraphVisualization",
@@ -33,9 +32,10 @@ export default {
     return {
       width: null,
       height: null,
-      selections: {},
+      d3Selections: {},
       simulation: null,
       gridSize: 100,
+      gridMargin: 100,
       forceProperties: {
         center: {
           x: 0.5,
@@ -57,9 +57,7 @@ export default {
         nodes: [],
         links: []
       },
-      icons: {
-        graph: graphIcon
-      }
+      selectedNodes: []
     };
   },
   computed: {
@@ -72,7 +70,7 @@ export default {
       this.width = window.innerWidth;
       this.height = window.innerHeight;
     },
-    initSimulation() {
+    initForceSimulation() {
       this.simulation = d3
         .forceSimulation()
         .force("link", d3.forceLink().links(this.graph.links))
@@ -81,21 +79,41 @@ export default {
         .on("tick", this.tick);
       this.updateForces();
     },
+    initD3Selections() {
+      this.d3Selections.svg = d3.select(this.$el.querySelector("svg"));
+
+      this.d3Selections.grid = this.d3Selections.svg
+        .append("rect")
+        .attr("x", "-10%")
+        .attr("y", "-10%")
+        .attr("width", "410%")
+        .attr("height", "410%")
+        .attr("fill", "url(#grid)");
+
+      this.d3Selections.graph = this.d3Selections.svg.append("g");
+    },
+    initZoom() {
+      this.zoom = d3
+        .zoom()
+        .scaleExtent([1 / 2, 2])
+        .on("zoom", this.onZoom);
+      this.d3Selections.svg.call(this.zoom);
+    },
     tick() {
       const transform = d => `translate(${d.x}, ${d.y})`;
 
       const link = d =>
         `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
 
-      const graph = this.selections.graph;
+      const graph = this.d3Selections.graph;
       graph.selectAll("path").attr("d", link);
       graph.selectAll("circle").attr("transform", transform);
     },
-    loadDataFromUrl(
-      url = "https://raw.githubusercontent.com/domoritz/maps/master/data/miserables.json"
-    ) {
+    loadDefaultDummyData() {
       d3
-        .json(url)
+        .json(
+          "https://raw.githubusercontent.com/domoritz/maps/master/data/miserables.json"
+        )
         .then(data => {
           this.graph = data;
         })
@@ -110,7 +128,7 @@ export default {
       this.simulation.force("link").links(this.graph.links);
 
       const simulation = this.simulation;
-      const graph = this.selections.graph;
+      const graph = this.d3Selections.graph;
 
       graph
         .selectAll("path")
@@ -129,10 +147,11 @@ export default {
         .call(
           d3
             .drag()
-            .on("start", this.nodeDragStarted)
-            .on("drag", this.nodeDragged)
-            .on("end", this.nodeDragEnded)
+            .on("start", this.onNodeDragStarted)
+            .on("drag", this.onNodeDragged)
+            .on("end", this.onNodeDragEnded)
         )
+        .on("click", this.onNodeClick)
         .exit()
         .remove();
 
@@ -151,46 +170,57 @@ export default {
 
       simulation.alpha(1).restart();
     },
-    zoomed() {
+    onZoom() {
       const transform = d3.event.transform;
-
       const translate = `${transform.x %
         (this.gridSize * transform.k)}, ${transform.y %
         (this.gridSize * transform.k)}`;
-      this.selections.graph.attr("transform", transform);
 
-      this.selections.grid.attr(
+      this.d3Selections.graph.attr("transform", transform);
+      this.d3Selections.grid.attr(
         "transform",
         `translate(${translate}) scale(${transform.k})`
       );
-      this.selections.graph.attr("transform", transform);
+      this.d3Selections.graph.attr("transform", transform);
 
-      const graphBox = this.selections.graph.node().getBBox();
-      const margin = 100;
-      const worldTopLeft = [graphBox.x - margin, graphBox.y - margin];
-      const worldBottomRight = [
-        graphBox.x + graphBox.width + margin,
-        graphBox.y + graphBox.height + margin
+      const graphBox = this.d3Selections.graph.node().getBBox();
+      const gridOffsetTopLeft = [
+        graphBox.x - this.gridMargin,
+        graphBox.y - this.gridMargin
       ];
-      this.zoom.translateExtent([worldTopLeft, worldBottomRight]);
+      const gridOffsetBottomRight = [
+        graphBox.x + graphBox.width + this.gridMargin,
+        graphBox.y + graphBox.height + this.gridMargin
+      ];
+
+      this.zoom.translateExtent([gridOffsetTopLeft, gridOffsetBottomRight]);
     },
-    nodeDragStarted(d) {
+    onNodeDragStarted(d) {
       if (!d3.event.active) {
         this.simulation.alphaTarget(0.3).restart();
       }
       d.fx = d.x;
       d.fy = d.y;
     },
-    nodeDragged(d) {
+    onNodeDragged(d) {
       d.fx = d3.event.x;
       d.fy = d3.event.y;
     },
-    nodeDragEnded(d) {
+    onNodeDragEnded(d) {
       if (!d3.event.active) {
         this.simulation.alphaTarget(0.0001);
       }
       d.fx = null;
       d.fy = null;
+    },
+    onNodeClick(d) {
+      console.log(d.selected);
+
+      d.selected = true;
+
+      const circle = this.d3Selections.graph.selectAll("circle");
+      // circle.classed("selected", false);
+      circle.filter(td => td === d).classed("selected", true);
     }
   },
   watch: {
@@ -211,27 +241,11 @@ export default {
     this.handleResize();
     window.addEventListener("resize", this.handleResize);
 
-    this.initSimulation();
-    this.selections.svg = d3.select(this.$el.querySelector("svg"));
+    this.initForceSimulation();
+    this.initD3Selections();
+    this.initZoom();
 
-    const svg = this.selections.svg;
-    this.selections.grid = svg
-      .append("rect")
-      .attr("x", "-10%")
-      .attr("y", "-10%")
-      .attr("width", "410%")
-      .attr("height", "410%")
-      .attr("fill", "url(#grid)");
-
-    this.selections.graph = this.selections.svg.append("g");
-
-    this.zoom = d3
-      .zoom()
-      .scaleExtent([1 / 2, 2])
-      .on("zoom", this.zoomed);
-    svg.call(this.zoom);
-
-    this.loadDataFromUrl();
+    this.loadDefaultDummyData();
   }
 };
 </script>
@@ -263,15 +277,16 @@ export default {
       fill: #333333;
       stroke: #ffffff;
       stroke-width: 1px;
+      cursor: pointer;
+      &.selected {
+        fill: #3f72af;
+      }
     }
   }
   &-counter {
     position: fixed;
     left: 20px;
     bottom: 20px;
-    display: inline-block;
-    padding: 5px;
-    background: #fff;
     font-size: 12px;
   }
 }
