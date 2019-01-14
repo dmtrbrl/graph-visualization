@@ -1,13 +1,11 @@
 <template>
   <main class="graph">
-    <header class="graph-header">
-      <h1 class="graph-heading">
-        Graph Visualization
-      </h1>
-      <div class="graph-header-links">
-        <a href="#">Show on Github</a>
-      </div>
-    </header>
+    <h1 class="graph-heading">
+      Graph Visualization
+    </h1>
+    <div class="graph-github">
+      <a href="#">Show on Github</a>
+    </div>
     <svg 
       v-if="graph.nodes"
       class="graph-svg" 
@@ -23,19 +21,17 @@
         </pattern>
       </defs>
     </svg>
-    <footer class="graph-footer">
-      <div class="graph-footer-counter">
-        {{ graph.nodes.length }} nodes / {{ graph.links.length }} edges
-      </div>
-      <div class="graph-footer-controls">
-        <a href="#randomize" @click.prevent="generateRandomGraph">Randomize</a> 
-        / 
-        <label class="graph-upload">
-          Upload JSON file
-          <input type="file" accept="application/JSON" @change="loadTextFromFile" ref="fileInput">
-        </label>
-      </div>
-    </footer>
+    <div class="graph-counter">
+      {{ graph.nodes.length }} nodes / {{ graph.links.length }} edges
+    </div>
+    <div class="graph-controls">
+      <a href="#randomize" @click.prevent="generateRandomGraph">Randomize</a> 
+      / 
+      <label class="graph-upload">
+        Upload JSON file
+        <input type="file" accept="application/JSON" @change="loadTextFromFile" ref="fileInput">
+      </label>
+    </div>
   </main>
 </template>
 
@@ -361,25 +357,22 @@ export default {
       border: 0;
     }
   }
-  &-header {
+  &-heading {
     position: fixed;
     top: 20px;
     left: 20px;
-    right: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    &-links {
-      display: inline-block;
-      padding: 5px;
-      background: #fff;
-      font-size: 12px;
-    }
-  }
-  &-heading {
     margin: 0;
     font-size: 16px;
     cursor: default;
+  }
+  &-github {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: inline-block;
+    padding: 5px;
+    background: #fff;
+    font-size: 12px;
   }
   &-svg {
     display: block;
@@ -410,6 +403,21 @@ export default {
       }
     }
   }
+  &-counter,
+  &-controls {
+    position: fixed;
+    bottom: 20px;
+    display: inline-block;
+    padding: 5px;
+    background: #fff;
+    font-size: 12px;
+  }
+  &-counter {
+    left: 20px;
+  }
+  &-controls {
+    right: 20px;
+  }
   &-footer {
     position: fixed;
     left: 20px;
@@ -418,13 +426,6 @@ export default {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    &-counter,
-    &-controls {
-      display: inline-block;
-      padding: 5px;
-      background: #fff;
-      font-size: 12px;
-    }
   }
   &-upload {
     position: relative;
