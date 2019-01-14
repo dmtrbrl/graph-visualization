@@ -4,7 +4,7 @@
       Graph Visualization
     </h1>
     <div class="graph-github">
-      <a href="#">Show on Github</a>
+      <a href="https://github.com/dmtrbrl/graph-visualization">Github</a>
     </div>
     <svg 
       v-if="graph.nodes"
